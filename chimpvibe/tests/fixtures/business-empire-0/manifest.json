@@ -1,0 +1,109 @@
+{
+  "id": "revision-82722ad2-e944-499c-bd89-e210ce495df9",
+  "gameId": "game-613fe14a-5d4b-4217-b298-fbf14d20159d",
+  "title": "Business Empire",
+  "summary": "Build a shared-city lemonade business from $5 and 10 drinks. Compete for customers, manage stock and pricing, respond to weather, buy upgrades and expand through automatic multiplayer seasons.",
+  "schemaId": "business-empire-native",
+  "stateVersion": 1,
+  "readsStateVersions": [
+    1
+  ],
+  "schedule": {
+    "mode": "fixed",
+    "tickMs": 250
+  },
+  "actions": [
+    {
+      "type": "price",
+      "data": {
+        "type": "number"
+      }
+    },
+    {
+      "type": "buy",
+      "data": {
+        "enum": [
+          10,
+          25,
+          50,
+          100
+        ]
+      }
+    },
+    {
+      "type": "upgrade",
+      "data": {
+        "enum": [
+          "marketing",
+          "quality",
+          "efficiency",
+          "storage",
+          "market_research",
+          "intel_network",
+          "supply_insight"
+        ]
+      }
+    },
+    {
+      "type": "location",
+      "data": {
+        "type": "null"
+      }
+    },
+    {
+      "type": "ready",
+      "data": {
+        "type": "null"
+      }
+    },
+    {
+      "type": "unready",
+      "data": {
+        "type": "null"
+      }
+    },
+    {
+      "type": "auto",
+      "data": {
+        "type": "boolean"
+      }
+    },
+    {
+      "type": "mode",
+      "data": {
+        "enum": [
+          "solo",
+          "online"
+        ]
+      }
+    },
+    {
+      "type": "rename",
+      "data": {
+        "type": "string"
+      }
+    },
+    {
+      "type": "reset",
+      "data": {
+        "type": "null"
+      }
+    },
+    {
+      "type": "autoConfig",
+      "data": {
+        "type": "object"
+      }
+    },
+    {
+      "type": "chat",
+      "data": {
+        "type": "string"
+      }
+    }
+  ],
+  "events": [],
+  "client": {
+    "entry": "client/main.js"
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "id": "revision-82722ad2-e944-499c-bd89-e210ce495df9",
+  "id": "revision-929e5970-77a1-4983-982e-a4ed09e95df7",
   "gameId": "game-613fe14a-5d4b-4217-b298-fbf14d20159d",
   "title": "Business Empire",
   "summary": "Build a shared-city lemonade business from $5 and 10 drinks. Compete for customers, manage stock and pricing, respond to weather, buy upgrades and expand through automatic multiplayer seasons.",
@@ -97,6 +97,18 @@
     },
     {
       "type": "chat",
+      "data": {
+        "type": "string"
+      }
+    },
+    {
+      "type": "createCity",
+      "data": {
+        "type": "null"
+      }
+    },
+    {
+      "type": "joinCity",
       "data": {
         "type": "string"
       }

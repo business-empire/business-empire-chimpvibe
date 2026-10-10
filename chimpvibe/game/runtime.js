@@ -2,10 +2,10 @@
 const manifest=require('./manifest.json'),T=require('./tuning.js');
 const clamp=(n,a,b)=>Math.max(a,Math.min(b,n)),money=n=>Math.round(n*100)/100;
 const finite=n=>typeof n==='number'&&Number.isFinite(n);
-function player(r){return {id:r.id,name:r.name,businessName:'LEMONADE STAND',mode:'choosing',solo:null,autoThreshold:20,autoTarget:80,cash:T.startCash,inventory:T.startStock,inventoryValue:money(T.startStock*.2),price:1,reputation:0,level:1,xp:0,xpToNext:100,capacity:T.startCapacity,upgrades:{marketing:0,quality:0,efficiency:0,storage:0,market_research:0,intel_network:0,supply_insight:0},locations:1,propertyInvestment:0,rent:0,revenue:0,customers:0,streak:0,bestDay:0,achievements:[],ready:false,autoBuy:false,wins:0,report:null,notice:'Start with $5 and 10 drinks. Set a price, buy stock and run the day.',commandCooldown:0};}
+function player(r){return {id:r.id,name:r.name,businessName:'LEMONADE STAND',mode:'choosing',cityId:null,cityRequestCount:0,joinCooldown:0,solo:null,autoThreshold:20,autoTarget:80,cash:T.startCash,inventory:T.startStock,inventoryValue:money(T.startStock*.2),price:1,reputation:0,level:1,xp:0,xpToNext:100,capacity:T.startCapacity,upgrades:{marketing:0,quality:0,efficiency:0,storage:0,market_research:0,intel_network:0,supply_insight:0},locations:1,propertyInvestment:0,rent:0,revenue:0,customers:0,streak:0,bestDay:0,achievements:[],ready:false,autoBuy:false,wins:0,report:null,notice:'Start with $5 and 10 drinks. Set a price, buy stock and run the day.',commandCooldown:0};}
 function reconcile(s,roster){const active=roster.filter(r=>r.role==='player');for(const p of s.players)p.active=active.some(r=>r.id===p.id);for(const r of active){const p=s.players.find(p=>p.id===r.id);if(p){p.name=r.name;p.active=true;}else{if(s.players.length>=64){const old=s.players.findIndex(p=>!p.active);if(old<0)continue;s.players.splice(old,1);}s.players.push({...player(r),active:true});}}}
 function emptyMarket(){return {day:1,season:1,remaining:T.dayMs,break:0,weather:'sunny',material:.2,cityEvent:{name:'Ordinary day',mult:1},feed:[],chats:[],winner:'',roundCash:0};}
-function initialize({roster}){const s={players:[],...emptyMarket()};reconcile(s,roster);return s;}
+function initialize({roster}){const s={players:[],cities:[],nextCity:1,...emptyMarket()};reconcile(s,roster);return s;}
 function restore({state}){return state;}
 function log(s,text){s.feed.push({day:s.day,text});s.feed=s.feed.slice(-12);}
 const stockCost=(s,p)=>money(s.material*Math.max(.2,1-p.upgrades.efficiency*.1));
@@ -35,6 +35,7 @@ function runDay(s,random){
   while(p.xp>=p.xpToNext&&p.level<50){p.xp-=p.xpToNext;p.level++;p.xpToNext=Math.floor(p.xpToNext*1.5);p.capacity+=20;p.reputation=Math.min(200,p.reputation+p.level*2);}
   p.report={day:s.day,wanted,served,revenue,expenses,stockExpense,overhead,rent:p.rent,utilities:s.day>T.utilityAfterDay?T.utilities:0,profit,event};p.ready=false;p.notice=served<wanted?'Stock-out: missed '+(wanted-served)+' customers. Restock before tomorrow.':profit>0?'Profitable day. Keep some cash for your next restock.':'Review your price and stock. Expenses exceeded sales.';
   if(p.cash<stockCost(s,p)&&p.inventory===0){p.inventory=T.stockRecovery;p.inventoryValue=0;p.notice='Recovery delivery: 5 drinks to help you restart. No cash bonus.';}
+  p.report.reason=p.notice;
   if(p.revenue>=100)achievement(s,p,'revenue100','First hundred',25);if(p.revenue>=500)achievement(s,p,'revenue500','Half-grand',50);if(p.streak>=5)achievement(s,p,'streak5','Five profitable days',30);if(p.locations>=2)achievement(s,p,'expand','Expansion',50);if(p.level>=5)achievement(s,p,'level5','Level five',100);
   log(s,p.name+' sold '+served+' drinks');
  }
@@ -58,25 +59,41 @@ function stepMarket({state:s,commands,roster,time,random}){
  return {state:s,events:[]};
 }
 
+function pruneCities(s){s.cities=s.cities.filter(city=>s.players.some(p=>p.cityId===city.id));}
+function enterCity(p,id,message){p.mode='online';p.cityId=id;p.ready=false;p.report=null;p.notice=message;}
+function createCity(s,p,random){
+ pruneCities(s);if(s.cities.length>=32){p.notice='All 32 private cities are occupied. Join a city or try again later.';return;}
+ const alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';let code='';
+ for(let attempt=0;attempt<64;attempt++){let prefix='';for(let i=0;i<4;i++)prefix+=alphabet[Math.floor(random()*alphabet.length)];code=prefix+s.nextCity.toString(36).toUpperCase().padStart(2,'0').slice(-2);s.nextCity++;if(!s.cities.some(city=>city.code===code))break;code='';}
+ if(!code){p.notice='Could not create a unique city code. Try again.';return;}
+ const city={...emptyMarket(),id:'city-'+s.nextCity,name:p.name.slice(0,24)+"'s City",code,ownerId:p.id};s.cities.push(city);enterCity(p,city.id,'Private city created. Invite friends with code '+code+'.');pruneCities(s);
+}
 function step({state:s,commands,roster,time,random}){
+ // Add optional city fields on the first tick after replacing the accepted build.
+ // Restore itself must leave the same-schema checkpoint byte-for-byte unchanged.
+ if(!Array.isArray(s.cities))s.cities=[];if(!finite(s.nextCity))s.nextCity=1;
  reconcile(s,roster);
+ pruneCities(s);for(const p of s.players){if(!finite(p.cityRequestCount))p.cityRequestCount=0;if(p.cityId===undefined)p.cityId=null;if(p.mode==='online'&&!p.cityId)p.cityId='public';p.joinCooldown=Math.max(0,(p.joinCooldown||0)-Math.max(0,time.deltaMs));}
  for(const c of commands){if(c.type!=='action')continue;let p=s.players.find(p=>p.id===c.participantId&&p.active);if(!p)continue;const a=c.action;
-  if(a.type==='mode'&&['solo','online'].includes(a.data)){p.mode=a.data;p.ready=false;if(p.mode==='solo'&&!p.solo)p.solo=emptyMarket();}
+  if(a.type==='mode'&&['solo','online'].includes(a.data)){p.cityRequestCount++;p.ready=false;p.report=null;if(a.data==='online')enterCity(p,'public','Joined Chimp Vibe City. Plan your day with the other traders.');else{p.mode='solo';p.cityId=null;if(!p.solo)p.solo=emptyMarket();p.notice='Solo mode. RUN DAY advances only your own business.';}pruneCities(s);}
+  if(a.type==='createCity'){p.cityRequestCount++;createCity(s,p,random);}
+  if(a.type==='joinCity'&&typeof a.data==='string'){p.cityRequestCount++;if(p.joinCooldown>0)p.notice='Wait a moment before trying another city code.';else{p.joinCooldown=1000;const code=a.data.trim().toUpperCase(),city=s.cities.find(city=>city.code===code);if(!/^[A-Z0-9]{6}$/.test(code))p.notice='Enter the six-character code your friend shared.';else if(!city)p.notice='City code not found. Check the code and try again.';else{enterCity(p,city.id,'Joined '+city.name+'.');pruneCities(s);}}}
   if(a.type==='rename'&&typeof a.data==='string'&&a.data.trim().length>0&&a.data.trim().length<=30)p.businessName=a.data.trim().toUpperCase();
-  if(a.type==='reset'){const index=s.players.findIndex(q=>q.id===p.id),mode=p.mode;const replacement={...player(p),active:true};replacement.mode=mode;if(mode==='solo')replacement.solo=emptyMarket();s.players=s.players.map((q,i)=>i===index?replacement:q);p=replacement;}
+  if(a.type==='reset'){const index=s.players.findIndex(q=>q.id===p.id),mode=p.mode;const replacement={...player(p),active:true};replacement.mode=mode;replacement.cityId=p.cityId;replacement.cityRequestCount=p.cityRequestCount;if(mode==='solo')replacement.solo=emptyMarket();s.players=s.players.map((q,i)=>i===index?replacement:q);p=replacement;}
   if(a.type==='autoConfig'&&a.data&&finite(a.data.threshold)&&finite(a.data.target)){p.autoThreshold=Math.floor(clamp(a.data.threshold,0,p.capacity));p.autoTarget=Math.floor(clamp(a.data.target,0,100));}
-  if(a.type==='chat'&&p.mode==='online'&&typeof a.data==='string'&&a.data.trim().length&&p.commandCooldown===0){s.chats.push({name:p.name,text:a.data.trim().slice(0,200)});s.chats=s.chats.slice(-24);p.commandCooldown=1000;}
+  if(a.type==='chat'&&p.mode==='online'&&typeof a.data==='string'&&a.data.trim().length&&p.commandCooldown===0){const city=p.cityId==='public'?s:s.cities.find(city=>city.id===p.cityId);if(city){city.chats.push({name:p.name,text:a.data.trim().slice(0,200)});city.chats=city.chats.slice(-24);p.commandCooldown=1000;}}
  }
- const online=s.players.filter(p=>p.active&&p.mode==='online'),shared={...s,players:online};
+ const online=s.players.filter(p=>p.active&&p.mode==='online'&&(!p.cityId||p.cityId==='public')),shared={...s,players:online};
  stepMarket({state:shared,commands:commands.filter(c=>online.some(p=>p.id===c.participantId)),roster:roster.filter(r=>online.some(p=>p.id===r.id)),time,random});
  const {players:unused,...sharedData}=shared;Object.assign(s,sharedData);
+ for(const city of s.cities){const members=s.players.filter(p=>p.active&&p.mode==='online'&&p.cityId===city.id),market={...city,players:members};stepMarket({state:market,commands:commands.filter(c=>members.some(p=>p.id===c.participantId)),roster:roster.filter(r=>members.some(p=>p.id===r.id)),time,random});const {players:ignored,...next}=market;Object.assign(city,next);}
  for(const p of s.players.filter(p=>p.active&&p.mode==='solo')){const market={...p.solo,players:[p]};stepMarket({state:market,commands:commands.filter(c=>c.participantId===p.id),roster:roster.filter(r=>r.id===p.id),time:{...time,deltaMs:0},random});const {players:ignored,...next}=market;p.solo=next;}
  return {state:s,events:[]};
 }
 function project({state:s,recipient}){
- const own=recipient.role==='player'?s.players.find(p=>p.id===recipient.id&&p.active):null,market=own?.mode==='solo'?own.solo:s,players=own?.mode==='solo'?[own]:s.players.filter(p=>p.active&&p.mode==='online'),ctx={...market,players},average=players.length?players.reduce((sum,p)=>sum+p.price,0)/players.length:0;
+ const own=recipient.role==='player'?s.players.find(p=>p.id===recipient.id&&p.active):null,city=own?.mode==='online'&&own.cityId&&own.cityId!=='public'?s.cities.find(city=>city.id===own.cityId):null,market=own?.mode==='solo'?(own.solo||emptyMarket()):own?.mode==='choosing'?emptyMarket():city||s,players=own?.mode==='solo'?[own]:s.players.filter(p=>p.active&&p.mode==='online'&&(city?p.cityId===city.id:!p.cityId||p.cityId==='public')),ctx={...market,players},average=players.length?players.reduce((sum,p)=>sum+p.price,0)/players.length:0;
  const privateOwn=own?{...own,solo:null}:null;
- return {you:recipient.id,own:privateOwn,day:market.day,season:market.season,remaining:market.remaining,break:0,winner:market.winner,weather:market.weather,weatherName:T.WEATHER[market.weather].name,material:market.material,cityEvent:market.cityEvent.name,feed:market.feed,chats:market.chats,players:players.map(p=>({id:p.id,name:p.name,businessName:p.businessName,level:p.level,locations:p.locations,revenue:p.revenue,customers:p.customers,ready:p.ready,wins:p.wins})),intel:own?{averagePrice:own.upgrades.market_research?money(average):null,estimatedDemand:own.upgrades.intel_network?marketPool(ctx,6):null,rivalStock:own.upgrades.supply_insight?players.filter(p=>p.id!==own.id).map(p=>({name:p.name,stock:Math.round(p.inventory/10)*10})):null}:null,stockCost:own?stockCost(ctx,own):null,locationCost:own?locationCost(own):null,upgrades:own?T.upgrades.map(u=>({...u,cost:upgradeCost(own,u),level:own.upgrades[u.id]})):[]};
+ return {you:recipient.id,own:privateOwn,city:own?.mode==='online'?{id:city?.id||'public',name:city?.name||'CHIMP VIBE CITY',private:!!city,code:city?.code||null}:null,day:market.day,season:market.season,remaining:market.remaining,break:0,winner:market.winner,weather:market.weather,weatherName:T.WEATHER[market.weather].name,material:market.material,cityEvent:market.cityEvent.name,feed:market.feed,chats:market.chats,players:players.map(p=>({id:p.id,name:p.name,businessName:p.businessName,level:p.level,locations:p.locations,revenue:p.revenue,todayRevenue:p.report?.day===market.day-1?p.report.revenue:0,customers:p.customers,ready:p.ready,wins:p.wins})),intel:own?{averagePrice:own.upgrades.market_research?money(average):null,estimatedDemand:own.upgrades.intel_network?marketPool(ctx,6):null,rivalStock:own.upgrades.supply_insight?players.filter(p=>p.id!==own.id).map(p=>({name:p.name,stock:Math.round(p.inventory/10)*10})):null}:null,stockCost:own?stockCost(ctx,own):null,locationCost:own?locationCost(own):null,upgrades:own?T.upgrades.map(u=>({...u,cost:upgradeCost(own,u),level:own.upgrades[u.id]})):[]};
 }
 module.exports={manifest,initialize,restore,step,project};
 

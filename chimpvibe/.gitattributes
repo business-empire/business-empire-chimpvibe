@@ -1,5 +1,6 @@
 # Preserve exact platform-submitted source bytes and inherited whitespace.
 game/** -text whitespace=-trailing-space
+tests/fixtures/** -text whitespace=-trailing-space
 *.md text eol=lf
 *.mjs text eol=lf
 package.json text eol=lf
