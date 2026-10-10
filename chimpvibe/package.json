@@ -1,0 +1,10 @@
+{
+  "name": "business-empire-chimpvibe-native",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "test": "node tests/mechanics.mjs",
+    "preview": "node preview.mjs"
+  }
+}

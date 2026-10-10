@@ -1,0 +1,15 @@
+# Business Empire
+
+Native Chimp Vibe edition by lego, adapted from https://github.com/aryamthecodebreaker/business-empire-game. Development belongs in the separate fork https://github.com/business-empire/business-empire-chimpvibe.
+
+Preserves the $5/10-stock start, weather pool and multipliers, 1.5x upgrade cost scaling, marketing/quality/efficiency/storage and intelligence upgrades, reputation, XP/levels, stock-outs, utilities after day five, location prices of 2500 x 1.7 per expansion, catastrophes, achievements and restocking decisions. The browser-owned economy and external service are replaced by authoritative native session state. Browser storage and external network access are not used.
+
+Solo mode advances only when RUN DAY is pressed. Online players share a customer pool and lock daily plans; all ready advances the day, otherwise a 45-second timer keeps idle traders from blocking play. Thirty-day city results award a win and continue with business progress intact. Manual reset affects only its owner. Disconnected businesses remain in a bounded cache for same-participant session rejoining. Bankrupt players receive a small stock delivery without a cash bonus.
+
+Private prices, cash, stock and reports are projected only to their owner. Intelligence upgrades intentionally unlock limited aggregated competitor prices or rounded stock estimates. The public standings show cumulative revenue, customers, locations and wins; chat/global off-platform leaderboards and cross-session persistence from the original are outside this native edition.
+
+The original index.html markup and main.css, animations.css and multiplayer.css presentation are preserved through safe DOM creation and scoped styles. This keeps the neon terminal theme, mode selection, Dashboard/Business/Upgrades/Multiplayer/Log tabs, price control, restock amounts, configurable auto-buy, naming, strategy note, help, reset confirmation and day-report/continue flow. No replacement marketplace scene is included. Browser prompt uses a modal with the same terminal styling because the shell owns browser interactions. Tuning is centralized in tuning.js.
+
+Math corrections: expansions add 24 customers of base city footfall and charge 2% of purchase price in daily rent, with rent and restock reserves required before purchase. Auto-buy respects the original threshold and target settings, estimates next-day demand with a 15% buffer and reserves overhead. Reports subtract the weighted cost of sold stock while cash pays for purchases once. City-month winners use cash, conservative stock value and 65% resale value of purchased property, avoiding a fictional flat value per location.
+
+Chimp Vibe owns session membership and checkpoints. Its session invitations replace external private-city codes; rankings and chat cover the current native session. External-service daily challenges use native milestone rewards. This edition does not claim global historical leaderboards, local-storage saves or cross-session persistence. All state, time, commands and randomness come from the host. The original standalone edition stays separate at the repository root.
